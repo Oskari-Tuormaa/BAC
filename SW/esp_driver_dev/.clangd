@@ -1,0 +1,14 @@
+CompileFlags:
+    Add: [
+        -ferror-limit=0,
+        -mlong-calls,
+        -I/home/oskari/prog/esp/esp-idf/components/**,
+        -I/home/oskari/.espressif/tools/xtensa-esp32-elf/esp-2021r1-8.4.0/xtensa-esp32-elf/include,
+        -I/home/oskari/.espressif/tools/xtensa-esp32-elf/esp-2021r1-8.4.0/xtensa-esp32-elf/xtensa-esp32-elf/include,
+        -I/home/oskari/.espressif/tools/xtensa-esp32-elf/esp-2021r1-8.4.0/xtensa-esp32-elf/xtensa-esp32-elf/include/c++/8.4.0,
+    ]
+    Remove: [
+        -mlongcalls,
+        -fno-tree-switch-conversion,
+        -fstrict-volatile-bitfields,
+    ]
