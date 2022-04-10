@@ -18,9 +18,9 @@ void app_main(void)
 
     // Setup pulser
     pulser_config_t pulser_config = {
-        .gpios = {12, 13, 14, 27},
-        .n_gpio = 4,
-        .freq = 80e3,
+        .gpios   = {12, 13, 14, 27},
+        .n_gpio  = 4,
+        .freq    = 80e3,
         .divider = 1
     };
     init_pulser(&pulser_config);

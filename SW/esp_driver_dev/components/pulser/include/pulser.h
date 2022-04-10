@@ -19,6 +19,9 @@
 #include <driver/gptimer.h>
 
 
+/**
+ * @brief Pulser configuration.
+ */
 typedef struct {
     gpio_num_t gpios[16];
     uint8_t n_gpio;
@@ -28,7 +31,22 @@ typedef struct {
 } pulser_config_t;
 
 
+/**
+ * @brief Initializes the pulser driver.
+ *
+ * @param *config The pulser configuration.
+ */
 void init_pulser(pulser_config_t* config);
+
+/**
+ * @brief Pulses configured GPIO pins.
+ *
+ * @note The length of the *steps array must at least be
+ *       the amount of GPIO pins multiplied by the amount of steps.
+ *
+ * @param *steps A boolean array containing the step values.
+ * @param n_steps The amount of steps in *steps.
+ */
 void pulse_pins(bool* steps, uint8_t n_steps);
 
 
