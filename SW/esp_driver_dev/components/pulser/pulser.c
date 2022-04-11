@@ -5,13 +5,13 @@
 
 /** Driver private structs **/
 typedef struct {
-    bool* steps;
+    const bool* steps;
     uint8_t n_steps;
 } callback_data_t;
 
 
 /** Driver variables **/
-pulser_config_t* m_config;
+const pulser_config_t* m_config;
 gptimer_event_callbacks_t m_callback_config;
 gptimer_alarm_config_t m_alarm_config;
 gptimer_config_t m_timer_config;
@@ -20,14 +20,32 @@ callback_data_t m_callback_data;
 
 
 /** Private functions **/
+bool read_2d_array(const bool *array, size_t offset, size_t i, size_t j) {
+    return *((array + offset * i) + j);
+}
+
 static bool alarm_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx) {
     static size_t step = 0;
-    callback_data_t* data = (callback_data_t*)user_ctx;
 
-    /* Set GPIO values */
-    for (size_t i = 0; i < m_config->n_gpio; ++i) {
-        bool val = *((data->steps + data->n_steps * i) + step);
-        gpio_set_level(m_config->gpios[i], val);
+    /* Retrieve data */
+    callback_data_t  *data    = (callback_data_t*)user_ctx;
+    const bool       *steps   = data->steps;
+    uint8_t           n_steps = data->n_steps;
+    const gpio_num_t *gpios   = m_config->gpios;
+    uint32_t          n_gpio  = m_config->n_gpio;
+
+    /* Turn off GPIO values */
+    for (size_t i = 0; i < n_gpio; ++i) {
+        bool val = read_2d_array(steps, n_steps, i, step);
+        if (!val)
+            gpio_set_level(gpios[i], val);
+    }
+
+    /* Turn on GPIO values */
+    for (size_t i = 0; i < n_gpio; ++i) {
+        bool val = read_2d_array(steps, n_steps, i, step);
+        if (val)
+            gpio_set_level(gpios[i], val);
     }
 
     /* Increment step */
@@ -42,7 +60,7 @@ static bool alarm_callback(gptimer_handle_t timer, const gptimer_alarm_event_dat
 
 
 /** Public functions **/
-void init_pulser(pulser_config_t* config) {
+void init_pulser(const pulser_config_t* config) {
     m_config = config;
 
     /* Setup GPIO pins */
@@ -72,7 +90,7 @@ void init_pulser(pulser_config_t* config) {
 }
 
 
-void pulse_pins(bool* steps, uint8_t n_steps) {
+void pulse_pins(const bool* steps, uint8_t n_steps) {
     /* Setup steps */
     m_callback_data.steps = steps;
     m_callback_data.n_steps = n_steps;

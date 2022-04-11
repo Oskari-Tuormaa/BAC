@@ -1,8 +1,8 @@
 /******************************************************************************
 * File:             pulser.h
 *
-* Author:           Oskari Tuormaa  
-* Created:          04/07/22 
+* Author:           Oskari Tuormaa
+* Created:          04/07/22
 *                   Simple driver for pulsing GPIO pins
 *****************************************************************************/
 
@@ -36,7 +36,7 @@ typedef struct {
  *
  * @param *config The pulser configuration.
  */
-void init_pulser(pulser_config_t* config);
+void init_pulser(const pulser_config_t* config);
 
 /**
  * @brief Pulses configured GPIO pins.
@@ -47,7 +47,7 @@ void init_pulser(pulser_config_t* config);
  * @param *steps A boolean array containing the step values.
  * @param n_steps The amount of steps in *steps.
  */
-void pulse_pins(bool* steps, uint8_t n_steps);
+void pulse_pins(const bool* steps, uint8_t n_steps);
 
 
 #endif /* end of include guard: PULSER_H_9ZT2R8NH */
