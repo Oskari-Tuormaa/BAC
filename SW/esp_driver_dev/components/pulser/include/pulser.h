@@ -6,8 +6,8 @@
 *                   Simple driver for pulsing GPIO pins
 *****************************************************************************/
 
-#ifndef PULSER_H_9ZT2R8NH
-#define PULSER_H_9ZT2R8NH
+#ifndef PULSER_H_
+#define PULSER_H_
 
 
 #include <freertos/FreeRTOS.h>
