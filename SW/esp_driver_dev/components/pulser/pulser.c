@@ -1,4 +1,5 @@
 #include "pulser.h"
+#include "APESW_generator.h"
 
 #define PNAME "PLSR"
 
@@ -64,13 +65,19 @@ void init_pulser(const pulser_config_t* config) {
     m_config = config;
 
     /* Setup GPIO pins */
+    uint64_t pin_bit_mask = 0;
     for (size_t i = 0; i < m_config->n_gpio; i++) {
         gpio_num_t gpio = m_config->gpios[i];
-        ESP_LOGI(PNAME, "Setting up GPIO%d", gpio);
-
-        ESP_ERROR_CHECK(gpio_reset_pin(gpio));
-        ESP_ERROR_CHECK(gpio_set_direction(gpio, GPIO_MODE_OUTPUT));
+        ESP_LOGI(PNAME, "Setting up %d", gpio);
+        pin_bit_mask |= (1ULL << gpio);
     }
+    gpio_config_t gpio_conf = {
+        .pin_bit_mask = pin_bit_mask,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&gpio_conf));
 
     /* Setup timer */
     m_timer_config.clk_src       = GPTIMER_CLK_SRC_APB;

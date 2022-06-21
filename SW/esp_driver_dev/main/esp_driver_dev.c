@@ -1,42 +1,54 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/queue.h>
 
 #include <esp_log.h>
 
-#include <driver/gpio.h>
-#include <driver/gptimer.h>
+#include <driver/uart.h>
+
+#include <esp_intr_alloc.h>
+#include <sdkconfig.h>
+#include <string.h>
+
 #include "pulser.h"
+#include "APESW_generator.h"
 
 #define INTR_GPIO 26
+static const uart_port_t uart_num = UART_NUM_0;
+static QueueHandle_t uart_queue;
 
-static void GPIO_ISR(void* data) {
+void do_pulse() {
     static bool const steps [] = {
-        // V22 - D13
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        // V11 - D13
+        1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
+        1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
+        1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
+        1, 0, 1, 0, 1, 0, 1, 0, 0,
 
         // V21 - D12
-        0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1,
-        0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1,
-        0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1,
-        0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+        0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1,
+        0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1,
+        0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1,
+        0, 1, 0, 1, 0, 1, 0, 1, 0,
 
         // V12 - D14
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
 
-        // V11 - D27
-        1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
-        1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
-        1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
-        1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0,
+        // V22 - D27
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
     };
-    uint8_t n_steps = sizeof(steps) / (sizeof(steps[0]) * 4);
+    static const uint8_t n_steps = sizeof(steps) / (sizeof(steps[0]) * 4);
     pulse_pins(steps, n_steps);
+}
+
+static void GPIO_ISR(void* data) {
+    do_pulse();
 }
 
 void setup_interrupt() {
@@ -54,9 +66,32 @@ void setup_interrupt() {
     gpio_isr_handler_add(INTR_GPIO, GPIO_ISR, NULL);
 }
 
+void setup_uart() {
+    // Setup UART parameters
+    uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .rx_flow_ctrl_thresh = 122,
+    };
+    ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
+
+    // Setup UART pins
+    ESP_ERROR_CHECK(uart_set_pin(uart_num, 1, 3, -1, -1));
+
+    // Install UART driver
+    const int uart_buffer_size = (1024 * 2);
+    ESP_ERROR_CHECK(uart_driver_install(uart_num, uart_buffer_size, uart_buffer_size, 10, &uart_queue, 0));
+
+    // Install UART interrupt
+    uart_enable_rx_intr(uart_num);
+}
+
 void app_main(void)
 {
-    setup_interrupt();
+    // setup_interrupt();
 
     // Setup pulser
     pulser_config_t pulser_config = {
@@ -67,35 +102,23 @@ void app_main(void)
     };
     init_pulser(&pulser_config);
 
-    // bool const steps [] = {
-    //     // V11 - D13
-    //     1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
-    //     1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
-    //     1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
-    //     1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0,
+    // Setup UART
+    setup_uart();
 
-    //     // V21 - D12
-    //     0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1,
-    //     0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1,
-    //     0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1,
-    //     0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
-
-    //     // V12 - D14
-    //     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-    //     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-    //     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-    //     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
-    //     // V22 - D27
-    //     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
-    //     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
-    //     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
-    //     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    // };
-    // uint8_t n_steps = sizeof(steps) / (sizeof(steps[0]) * 4);
-
+    char cmd[128];
+    uart_event_t event;
     while (1) {
-        // pulse_pins(steps, n_steps);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        if (xQueueReceive(uart_queue, (void*)&event, portMAX_DELAY)) {
+            switch (event.type) {
+                case UART_DATA:
+                    uart_read_bytes(uart_num, cmd, event.size, portMAX_DELAY);
+                    if (cmd[0] == 'p') {
+                        do_pulse();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 }
