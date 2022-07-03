@@ -21,8 +21,8 @@ callback_data_t m_callback_data;
 
 
 /** Private functions **/
-bool read_2d_array(const bool *array, size_t offset, size_t i, size_t j) {
-    return *((array + offset * i) + j);
+bool read_2d_array(const bool *array, size_t stride, size_t i, size_t j) {
+    return *(array + stride * i + j);
 }
 
 static bool alarm_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx) {
@@ -50,7 +50,7 @@ static bool alarm_callback(gptimer_handle_t timer, const gptimer_alarm_event_dat
     }
 
     /* Increment step */
-    step = (step + 1) % data->n_steps;
+    step = (step + 1) % n_steps;
 
     /* Check stop condition */
     if (step == 0)
